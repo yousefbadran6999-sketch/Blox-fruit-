@@ -1,163 +1,603 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>\u2694\ufe0f Ocean Legends - \u0644\u0639\u0628\u0629 \u0627\u0644\u0628\u062d\u0627\u0631 \u0627\u0644\u0623\u0633\u0637\u0648\u0631\u064a\u0629</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --gold: #f0a500;
-    --gold-light: #ffd060;
-    --deep: #0a0e1a;
-    --ocean: #0d1f3c;
-    --surface: #111827;
-    --card: #1a2540;
-    --border: #2a3a5c;
-    --text: #e8eaf0;
-    --muted: #8892a4;
-    --red: #e53e3e;
-    --green: #38a169;
-    --blue: #3182ce;
-    --purple: #805ad5;
-    --cyan: #00b5d8;
-    --orange: #dd6b20;
-  }
+import json
+import os
+import hashlib
+import time
+import random
+import sys
+import math
+from datetime import datetime
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+# ====================== إعدادات اللعبة ======================
+ADMIN_USERNAME = "goAdmin"
+ADMIN_PASSWORD = "GalaxyMaster@2024"
+ACCOUNTS_FILE = "blox_accounts.json"
+MAX_LEVEL = 2600
 
-  body {
-    font-family: 'Cairo', sans-serif;
-    background: var(--deep);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+# ====================== كل فواكه Blox Fruits (41 فاكهة كاملة) ======================
+FRUITS = {
+    # === Common Fruits (9 فواكه) ===
+    "Rocket": {"rarity": "Common", "type": "Natural", "damage": 15, "price": 5000, "level_req": 0, "abilities": ["Rocket Punch", "Rocket Blast"], "perm_price": 80000},
+    "Spin": {"rarity": "Common", "type": "Natural", "damage": 18, "price": 7500, "level_req": 0, "abilities": ["Spin Attack", "Tornado"], "perm_price": 100000},
+    "Blade": {"rarity": "Common", "type": "Natural", "damage": 20, "price": 10000, "level_req": 0, "abilities": ["Blade Slash", "Blade Storm"], "perm_price": 120000},
+    "Spring": {"rarity": "Common", "type": "Natural", "damage": 22, "price": 12000, "level_req": 0, "abilities": ["Spring Jump", "Spring Cannon"], "perm_price": 140000},
+    "Bomb": {"rarity": "Common", "type": "Natural", "damage": 25, "price": 15000, "level_req": 0, "abilities": ["Bomb Toss", "Big Bang"], "perm_price": 160000},
+    "Smoke": {"rarity": "Common", "type": "Natural", "damage": 28, "price": 18000, "level_req": 0, "abilities": ["Smoke Screen", "Smoke Blast"], "perm_price": 180000},
+    "Spike": {"rarity": "Common", "type": "Natural", "damage": 30, "price": 20000, "level_req": 0, "abilities": ["Spike Barrage", "Spike Wall"], "perm_price": 200000},
+    "Falcon": {"rarity": "Common", "type": "Natural", "damage": 25, "price": 15000, "level_req": 0, "abilities": ["Falcon Dive", "Falcon Punch"], "perm_price": 170000},
+    "Kilo": {"rarity": "Common", "type": "Natural", "damage": 20, "price": 10000, "level_req": 0, "abilities": ["Kilo Press", "Kilo Stomp"], "perm_price": 110000},
+    
+    # === Uncommon Fruits (9 فواكه) ===
+    "Flame": {"rarity": "Uncommon", "type": "Elemental", "damage": 45, "price": 250000, "level_req": 0, "abilities": ["Fire Ball", "Flame Pillar", "Fire Flight"], "perm_price": 2500000},
+    "Ice": {"rarity": "Uncommon", "type": "Elemental", "damage": 48, "price": 350000, "level_req": 0, "abilities": ["Ice Shard", "Ice Age", "Ice Skating"], "perm_price": 3000000},
+    "Sand": {"rarity": "Uncommon", "type": "Elemental", "damage": 42, "price": 300000, "level_req": 0, "abilities": ["Sand Storm", "Desert Funeral"], "perm_price": 2800000},
+    "Dark": {"rarity": "Uncommon", "type": "Elemental", "damage": 50, "price": 400000, "level_req": 0, "abilities": ["Dark Pull", "Dark Prison", "Dark Flight"], "perm_price": 3500000},
+    "Light": {"rarity": "Uncommon", "type": "Elemental", "damage": 52, "price": 450000, "level_req": 0, "abilities": ["Light Beam", "Light Spear", "Light Flight"], "perm_price": 3800000},
+    "Magma": {"rarity": "Uncommon", "type": "Elemental", "damage": 55, "price": 500000, "level_req": 0, "abilities": ["Magma Pool", "Magma Eruption", "Magma Flight"], "perm_price": 4000000},
+    "Quake": {"rarity": "Uncommon", "type": "Natural", "damage": 60, "price": 550000, "level_req": 0, "abilities": ["Quake Punch", "Earth Shatter"], "perm_price": 4200000},
+    "Spider": {"rarity": "Uncommon", "type": "Natural", "damage": 53, "price": 480000, "level_req": 0, "abilities": ["Spider Web", "Poison Bite"], "perm_price": 3900000},
+    "Love": {"rarity": "Uncommon", "type": "Natural", "damage": 40, "price": 280000, "level_req": 0, "abilities": ["Love Beam", "Charm"], "perm_price": 2600000},
+    
+    # === Rare Fruits (7 فواكه) ===
+    "Buddha": {"rarity": "Rare", "type": "Beast", "damage": 80, "price": 1200000, "level_req": 0, "abilities": ["Giant Punch", "Shockwave", "Buddha Form"], "perm_price": 8000000},
+    "Dough": {"rarity": "Rare", "type": "Natural", "damage": 85, "price": 1800000, "level_req": 0, "abilities": ["Dough Punch", "Dough Fist", "Dough Form"], "perm_price": 10000000},
+    "Phoenix": {"rarity": "Rare", "type": "Beast", "damage": 75, "price": 1500000, "level_req": 0, "abilities": ["Phoenix Blast", "Healing Flames", "Phoenix Form"], "perm_price": 9000000},
+    "Control": {"rarity": "Rare", "type": "Natural", "damage": 70, "price": 1400000, "level_req": 0, "abilities": ["Control Sphere", "Gravity Pull"], "perm_price": 8500000},
+    "Shadow": {"rarity": "Rare", "type": "Natural", "damage": 78, "price": 1600000, "level_req": 0, "abilities": ["Shadow Step", "Shadow Domain"], "perm_price": 9500000},
+    "Venom": {"rarity": "Rare", "type": "Natural", "damage": 82, "price": 1700000, "level_req": 0, "abilities": ["Venom Spray", "Poison Pool"], "perm_price": 9800000},
+    "Gravity": {"rarity": "Rare", "type": "Natural", "damage": 68, "price": 1300000, "level_req": 0, "abilities": ["Gravity Pull", "Black Hole"], "perm_price": 8200000},
+    
+    # === Legendary Fruits (8 فواكه) ===
+    "Dragon": {"rarity": "Legendary", "type": "Beast", "damage": 150, "price": 3500000, "level_req": 0, "abilities": ["Dragon Breath", "Dragon Claw", "Dragon Transformation", "Dragon Storm", "Dragon Flight"], "perm_price": 15000000},
+    "Leopard": {"rarity": "Legendary", "type": "Beast", "damage": 140, "price": 3200000, "level_req": 0, "abilities": ["Leopard Claw", "Leopard Dash", "Leopard Form", "Wild Hunt"], "perm_price": 14000000},
+    "Kitsune": {"rarity": "Legendary", "type": "Beast", "damage": 145, "price": 3300000, "level_req": 0, "abilities": ["Fox Fire", "Kitsune Tail", "Nine Tails Form", "Mystic Flame"], "perm_price": 14500000},
+    "Spirit": {"rarity": "Legendary", "type": "Natural", "damage": 130, "price": 3000000, "level_req": 0, "abilities": ["Spirit Call", "Ghost Army", "Soul Drain"], "perm_price": 13000000},
+    "Blizzard": {"rarity": "Legendary", "type": "Elemental", "damage": 125, "price": 2800000, "level_req": 0, "abilities": ["Ice Storm", "Blizzard Zone", "Frozen Domain"], "perm_price": 12000000},
+    "Sound": {"rarity": "Legendary", "type": "Natural", "damage": 120, "price": 2700000, "level_req": 0, "abilities": ["Sound Wave", "Sonic Boom", "Music Field"], "perm_price": 11500000},
+    "Mammoth": {"rarity": "Legendary", "type": "Beast", "damage": 135, "price": 3100000, "level_req": 0, "abilities": ["Mammoth Stomp", "Tusk Attack", "Mammoth Form"], "perm_price": 13500000},
+    "T-Rex": {"rarity": "Legendary", "type": "Beast", "damage": 138, "price": 3150000, "level_req": 0, "abilities": ["T-Rex Bite", "Tail Swing", "T-Rex Form"], "perm_price": 13800000},
+    
+    # === Mythical Fruits (8 فواكه) ===
+    "Leo": {"rarity": "Mythical", "type": "Beast", "damage": 160, "price": 5000000, "level_req": 0, "abilities": ["Leo Roar", "King's Claw", "Leo Form", "Royal Pride"], "perm_price": 20000000},
+    "Yeti": {"rarity": "Mythical", "type": "Beast", "damage": 155, "price": 4800000, "level_req": 0, "abilities": ["Yeti Freeze", "Ice Punch", "Yeti Form", "Snow Storm"], "perm_price": 19000000},
+    "Gas": {"rarity": "Mythical", "type": "Elemental", "damage": 148, "price": 4500000, "level_req": 0, "abilities": ["Gas Cloud", "Poison Gas", "Gas Form", "Explosion"], "perm_price": 18000000},
+}
 
-  /* ===== STARFIELD ===== */
-  #stars {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none; z-index: 0;
-    background: radial-gradient(ellipse at 20% 50%, #0d1f3c 0%, #0a0e1a 100%);
-    overflow: hidden;
-  }
-  .star {
-    position: absolute; background: white; border-radius: 50%;
-    animation: twinkle var(--d) ease-in-out infinite;
-  }
-  @keyframes twinkle {
-    0%,100%{opacity:0.2;transform:scale(1);}
-    50%{opacity:1;transform:scale(1.3);}
-  }
+# فاكهة المجره (الحصرية للأدمن goAdmin)
+GALAXY_FRUIT = {
+    "name": "Galaxy Fruit",
+    "rarity": "Admin",
+    "type": "Mythical",
+    "damage": 999,
+    "price": 99999999,
+    "level_req": 0,
+    "abilities": {
+        "1": {"name": "Galactic Cloak", "description": "تختفي وتصبح غير مرئي لمدة 5 ثواني", "damage": 0, "cooldown": 15},
+        "2": {"name": "Star Portal", "description": "تفتح بوابة نجمية وتنتقل لأي مكان", "damage": 0, "cooldown": 10},
+        "3": {"name": "Supernova Strike", "description": "تضرب بانفجار مستعر أعظم", "damage": 999, "cooldown": 20},
+        "4": {"name": "Asteroid Rain", "description": "تمطر السماء بالكويكبات", "damage": 750, "cooldown": 25},
+        "5": {"name": "Black Hole", "description": "تخلق ثقب أسود يبتلع كل شيء", "damage": 850, "cooldown": 30},
+        "6": {"name": "Galaxy Flight", "description": "تطير بسرعة الضوء وتضرب كل من تمر بجانبه", "damage": 500, "cooldown": 5}
+    },
+    "flight_speed": 25,
+    "description": "⭐ فاكهة المجرات - حصرية للأدمن goAdmin فقط ⭐"
+}
 
-  /* ===== SCREENS ===== */
-  .screen { display: none; position: relative; z-index: 1; min-height: 100vh; }
-  .screen.active { display: flex; flex-direction: column; }
+# ====================== كل السيوف في اللعبة ======================
+SWORDS = {
+    "Cutlass": {"damage": 15, "price": 1000, "level_req": 0, "abilities": ["Slash", "Stab"]},
+    "Katana": {"damage": 20, "price": 5000, "level_req": 10, "abilities": ["Quick Slash", "Dash"]},
+    "Twin Hooks": {"damage": 25, "price": 15000, "level_req": 30, "abilities": ["Hook Pull", "Spin Attack"]},
+    "Iron Mace": {"damage": 30, "price": 30000, "level_req": 50, "abilities": ["Heavy Smash", "Ground Pound"]},
+    "Shark Saw": {"damage": 35, "price": 50000, "level_req": 100, "abilities": ["Saw Blade", "Water Slash"]},
+    "Soul Cane": {"damage": 40, "price": 100000, "level_req": 150, "abilities": ["Soul Drain", "Life Steal"]},
+    "Gravity Cane": {"damage": 45, "price": 150000, "level_req": 200, "abilities": ["Gravity Pull", "Black Orb"]},
+    "Bisento": {"damage": 55, "price": 250000, "level_req": 300, "abilities": ["Whirlwind", "Earth Split"]},
+    "Dragon Trident": {"damage": 65, "price": 500000, "level_req": 500, "abilities": ["Dragon Flame", "Trident Throw"]},
+    "Saber V2": {"damage": 70, "price": 750000, "level_req": 700, "abilities": ["Lightning Slash", "Thunder Strike"]},
+    "Midnight Blade": {"damage": 75, "price": 1000000, "level_req": 900, "abilities": ["Dark Slash", "Shadow Step"]},
+    "True Triple Katana": {"damage": 85, "price": 1500000, "level_req": 1100, "abilities": ["Triple Slash", "Sword Dance"]},
+    "Dark Blade": {"damage": 100, "price": 2500000, "level_req": 1300, "abilities": ["Dark Slash", "Void Strike"]},
+    "Hallow Scythe": {"damage": 95, "price": 2000000, "level_req": 1200, "abilities": ["Soul Reap", "Death's Scythe"]},
+    "Yama": {"damage": 110, "price": 3000000, "level_req": 1500, "abilities": ["Inferno Slash", "Hell Fire"]},
+    "Tushita": {"damage": 115, "price": 3500000, "level_req": 1700, "abilities": ["Divine Slash", "Holy Light"]},
+    "Cursed Dual Katana": {"damage": 130, "price": 5000000, "level_req": 2000, "abilities": ["Cursed Slash", "Dual Wield"]},
+}
 
-  /* ===== LOGIN SCREEN ===== */
-  #loginScreen {
-    align-items: center; justify-content: center;
-    padding: 20px;
-  }
-  .login-box {
-    background: linear-gradient(145deg, #1a2540, #111827);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 40px;
-    width: 100%; max-width: 420px;
-    box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 40px rgba(240,165,0,0.05);
-    animation: floatIn 0.6s ease;
-  }
-  @keyframes floatIn {
-    from{opacity:0;transform:translateY(30px);}
-    to{opacity:1;transform:translateY(0);}
-  }
-  .game-title {
-    font-family: 'Cinzel', serif;
-    font-size: 2.2rem; font-weight: 900;
-    text-align: center;
-    background: linear-gradient(135deg, var(--gold), var(--gold-light), var(--gold));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    margin-bottom: 5px;
-    text-shadow: none;
-    filter: drop-shadow(0 0 20px rgba(240,165,0,0.3));
-  }
-  .game-subtitle {
-    text-align: center; color: var(--muted);
-    font-size: 0.85rem; margin-bottom: 30px;
-    letter-spacing: 2px; text-transform: uppercase;
-  }
-  .tabs {
-    display: flex; border-radius: 10px; overflow: hidden;
-    border: 1px solid var(--border); margin-bottom: 25px;
-  }
-  .tab {
-    flex: 1; padding: 10px; text-align: center;
-    cursor: pointer; transition: all 0.3s;
-    font-size: 0.9rem; font-weight: 600;
-    background: transparent; color: var(--muted);
-  }
-  .tab.active { background: var(--gold); color: #000; }
-  .input-group { margin-bottom: 16px; }
-  .input-group label {
-    display: block; margin-bottom: 6px;
-    font-size: 0.85rem; color: var(--muted); font-weight: 600;
-  }
-  .input-group input, .input-group select {
-    width: 100%; padding: 12px 15px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border); border-radius: 10px;
-    color: var(--text); font-size: 0.95rem; font-family: 'Cairo', sans-serif;
-    transition: border-color 0.3s;
-    outline: none;
-  }
-  .input-group input:focus, .input-group select:focus {
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(240,165,0,0.1);
-  }
-  .input-group select option { background: var(--surface); }
-  .btn {
-    width: 100%; padding: 13px;
-    border: none; border-radius: 10px;
-    font-size: 1rem; font-weight: 700;
-    cursor: pointer; transition: all 0.3s;
-    font-family: 'Cairo', sans-serif;
-  }
-  .btn-gold {
-    background: linear-gradient(135deg, var(--gold), var(--gold-light));
-    color: #000;
-  }
-  .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(240,165,0,0.4); }
-  .btn-gold:active { transform: translateY(0); }
-  .msg { text-align: center; margin-top: 12px; font-size: 0.85rem; min-height: 20px; }
-  .msg.error { color: var(--red); }
-  .msg.success { color: var(--green); }
-  .online-count {
-    text-align: center; margin-top: 20px;
-    font-size: 0.8rem; color: var(--muted);
-  }
-  .online-dot {
-    display: inline-block; width: 8px; height: 8px;
-    background: var(--green); border-radius: 50%;
-    margin-left: 5px; animation: pulse 1.5s infinite;
-  }
-  @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.4;} }
+# ====================== الأورا والجلود ======================
+AURAS = {
+    "None": {"price": 0, "color": "White", "level_req": 0},
+    "Red Aura": {"price": 50000, "color": "Red", "level_req": 100},
+    "Blue Aura": {"price": 50000, "color": "Blue", "level_req": 100},
+    "Green Aura": {"price": 50000, "color": "Green", "level_req": 100},
+    "Golden Aura": {"price": 200000, "color": "Gold", "level_req": 500},
+    "Dark Aura": {"price": 300000, "color": "Purple", "level_req": 750},
+    "Dragon Aura": {"price": 1000000, "color": "Orange-Red", "level_req": 1500},
+    "Galaxy Aura": {"price": 5000000, "color": "Rainbow", "level_req": 2000},
+    "Admin Aura": {"price": 0, "color": "Rainbow-Gold", "level_req": 0, "admin_only": True},
+}
 
-  /* ===== GAME SCREEN ===== */
-  #gameScreen { flex-direction: row; }
+DRAGON_SKINS = {
+    "Normal Dragon": {"price": 0, "color": "Red", "level_req": 0},
+    "Azure Dragon": {"price": 500000, "color": "Blue", "level_req": 1000},
+    "Golden Dragon": {"price": 2000000, "color": "Gold", "level_req": 2000},
+    "Shadow Dragon": {"price": 3000000, "color": "Black", "level_req": 2300},
+    "Admin Dragon": {"price": 0, "color": "Rainbow", "level_req": 0, "admin_only": True},
+}
 
-  /* Sidebar */
-  .sidebar {
-    width: 260px; min-height: 100vh;
-    background: var(--ocean);
-    border-left: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    position: fixed; right: 0; top: 0;
-    z-index: 100;
-    transition: transform 0.3s;
-  }
-  .sidebar-header {
-    padding: 20px;
-    border-bottom: 1px solid var(--border);
-    background: linear
+# ====================== الأكسسوارات ======================
+ACCESSORIES = {
+    "Dark Coat": {"stats": {"health": 500, "damage": 50}, "price": 100000, "level_req": 500},
+    "Ghoul Mask": {"stats": {"health": 300, "speed": 20}, "price": 150000, "level_req": 750},
+    "Valkyrie Helmet": {"stats": {"damage": 75, "health": 400}, "price": 200000, "level_req": 1000},
+    "Swan Glasses": {"stats": {"observation": 30}, "price": 80000, "level_req": 300},
+    "Pilot Helmet": {"stats": {"speed": 25}, "price": 120000, "level_req": 400},
+    "Pink Coat": {"stats": {"health": 200, "charm": 10}, "price": 60000, "level_req": 200},
+}
+
+# ====================== القبائل ======================
+RACES = {
+    "Human": {"bonus": {"damage": 10}, "unlock_level": 0},
+    "Rabbit": {"bonus": {"speed": 30}, "unlock_level": 100},
+    "Shark": {"bonus": {"health": 500, "swim_speed": 50}, "unlock_level": 200},
+    "Angel": {"bonus": {"health_regen": 20}, "unlock_level": 300},
+    "Ghoul": {"bonus": {"life_steal": 15}, "unlock_level": 500},
+    "Cyborg": {"bonus": {"energy": 50, "damage": 20}, "unlock_level": 800},
+}
+
+# ====================== الجزر والبحار ======================
+SEAS = {
+    "First Sea": {
+        "level_range": (1, 700),
+        "islands": [
+            {"name": "Starter Island", "level_req": 1, "enemies": ["Bandit", "Pirate"], "boss": None},
+            {"name": "Pirate Village", "level_req": 10, "enemies": ["Pirate Captain", "Brute"], "boss": "Bobby"},
+            {"name": "Desert Island", "level_req": 30, "enemies": ["Sand Warrior", "Mummy"], "boss": "Saw"},
+            {"name": "Frozen Village", "level_req": 60, "enemies": ["Snow Bandit", "Yeti"], "boss": "Yeti"},
+            {"name": "Marine Base", "level_req": 90, "enemies": ["Marine", "Marine Captain"], "boss": "Vice Admiral"},
+            {"name": "Skylands", "level_req": 150, "enemies": ["Sky Warrior", "Thunder God"], "boss": "Thunder God"},
+            {"name": "Prison", "level_req": 200, "enemies": ["Guard", "Prisoner"], "boss": "Warden"},
+            {"name": "Colosseum", "level_req": 250, "enemies": ["Gladiator", "Champion"], "boss": "Diamond"},
+            {"name": "Magma Village", "level_req": 300, "enemies": ["Magma Creature", "Fire Demon"], "boss": "Magma Admiral"},
+            {"name": "Underwater City", "level_req": 375, "enemies": ["Mermaid", "Shark"], "boss": "Sea King"},
+            {"name": "Fountain City", "level_req": 450, "enemies": ["Water Warrior", "Tidal"], "boss": "Tide Keeper"},
+            {"name": "Marine Fortress", "level_req": 550, "enemies": ["Elite Marine", "Canon"], "boss": "Marine Admiral"},
+            {"name": "Upper Skylands", "level_req": 650, "enemies": ["Sky Guardian", "Lightning"], "boss": "God of Lightning"},
+        ]
+    },
+    "Second Sea": {
+        "level_range": (700, 1450),
+        "islands": [
+            {"name": "Kingdom of Rose", "level_req": 700, "enemies": ["Pirate", "Mercenary"], "boss": "Jeremy"},
+            {"name": "Green Zone", "level_req": 775, "enemies": ["Musketeer", "Swordsman"], "boss": "Dragon"},
+            {"name": "Graveyard", "level_req": 850, "enemies": ["Ghost", "Skeleton"], "boss": "Reaper"},
+            {"name": "Snow Mountain", "level_req": 925, "enemies": ["Ice Warrior", "Frost"], "boss": "Frost Queen"},
+            {"name": "Hot and Cold", "level_req": 1000, "enemies": ["Flame Knight", "Ice Knight"], "boss": "Phoenix"},
+            {"name": "Cursed Ship", "level_req": 1075, "enemies": ["Cursed Pirate", "Phantom"], "boss": "Cursed Captain"},
+            {"name": "Ice Castle", "level_req": 1150, "enemies": ["Ice Guard", "Snow Golem"], "boss": "Ice Admiral"},
+            {"name": "Forgotten Island", "level_req": 1225, "enemies": ["Ancient Warrior", "Temple Guard"], "boss": "Ancient One"},
+            {"name": "Usoapp's Island", "level_req": 1300, "enemies": ["Usoapp", "Sniper"], "boss": "Usoapp"},
+            {"name": "Great Tree", "level_req": 1375, "enemies": ["Tree Spirit", "Forest Guardian"], "boss": "Great Tree Boss"},
+        ]
+    },
+    "Third Sea": {
+        "level_range": (1450, 2600),
+        "islands": [
+            {"name": "Port Town", "level_req": 1450, "enemies": ["Bandit", "Thug"], "boss": "Don Swan"},
+            {"name": "Hydra Island", "level_req": 1550, "enemies": ["Hydra Warrior", "Serpent"], "boss": "Hydra King"},
+            {"name": "Great Wall", "level_req": 1650, "enemies": ["Wall Guard", "Archer"], "boss": "General"},
+            {"name": "Floating Turtle", "level_req": 1750, "enemies": ["Turtle Warrior", "Shell"], "boss": "Turtle King"},
+            {"name": "Mansion", "level_req": 1900, "enemies": ["Maid", "Butler"], "boss": "Lord"},
+            {"name": "Castle on the Sea", "level_req": 2050, "enemies": ["Knight", "Royal Guard"], "boss": "King"},
+            {"name": "Cake Island", "level_req": 2200, "enemies": ["Chef", "Sweet Guard"], "boss": "Big Mom"},
+            {"name": "Elite Island", "level_req": 2400, "enemies": ["Elite Warrior", "Champion"], "boss": "Elite Boss"},
+            {"name": "Sea of Treats", "level_req": 2550, "enemies": ["Candy Warrior", "Sweet Monster"], "boss": "Candy King"},
+        ]
+    }
+}
+
+# ====================== دوال الحفظ والتحميل ======================
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def save_accounts(accounts):
+    with open(ACCOUNTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(accounts, f, indent=4, ensure_ascii=False)
+
+def load_accounts():
+    if os.path.exists(ACCOUNTS_FILE):
+        with open(ACCOUNTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+# ====================== نظام تسجيل الدخول ======================
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def register():
+    clear_screen()
+    print("=" * 70)
+    print("                     📝 إنشاء حساب جديد 📝")
+    print("=" * 70)
+    
+    username = input("\nأدخل اسم المستخدم الجديد: ").strip()
+    
+    accounts = load_accounts()
+    if username in accounts:
+        print("\n⚠️ الاسم موجود بالفعل!")
+        time.sleep(1.5)
+        return None
+    
+    password = input("أدخل كلمة المرور: ").strip()
+    confirm = input("أكد كلمة المرور: ").strip()
+    
+    if password != confirm:
+        print("\n⚠️ كلمة المرور غير متطابقة!")
+        time.sleep(1.5)
+        return None
+    
+    is_admin = (username == ADMIN_USERNAME)
+    
+    if is_admin:
+        # حساب الأدمن goAdmin - عنده كل حاجة غير محدودة
+        player_data = {
+            "password": hash_password(password),
+            "is_admin": True,
+            "level": MAX_LEVEL,
+            "exp": 0,
+            "hp": 25500,
+            "max_hp": 25500,
+            "current_fruit": "Galaxy Fruit",
+            "beli": 999999999999,
+            "frags": 999999999,
+            "position": "Third Sea",
+            "current_island": "Castle on the Sea",
+            "aura": "Admin Aura",
+            "dragon_skin": "Admin Dragon",
+            "race": "Cyborg",
+            "current_sword": "Cursed Dual Katana",
+            "current_accessory": "Dark Coat",
+            "owned_auras": list(AURAS.keys()),
+            "owned_dragon_skins": list(DRAGON_SKINS.keys()),
+            "owned_fruits": list(FRUITS.keys()) + ["Galaxy Fruit"],
+            "owned_swords": list(SWORDS.keys()),
+            "owned_accessories": list(ACCESSORIES.keys()),
+            "owned_races": list(RACES.keys()),
+            "perm_fruits": list(FRUITS.keys()) + ["Galaxy Fruit"],
+            "bounty": 30000000,
+            "faction": "Pirate",
+            "title": "☠️ Sea Emperor ☠️",
+            "stat_resets": 999999,
+            "fighting_style": "Dragon Talon"
+        }
+    else:
+        player_data = {
+            "password": hash_password(password),
+            "is_admin": False,
+            "level": 1,
+            "exp": 0,
+            "hp": 100,
+            "max_hp": 100,
+            "current_fruit": None,
+            "beli": 5000,
+            "frags": 0,
+            "position": "First Sea",
+            "current_island": "Starter Island",
+            "aura": "None",
+            "dragon_skin": "Normal Dragon",
+            "race": "Human",
+            "current_sword": "Cutlass",
+            "current_accessory": None,
+            "owned_auras": ["None"],
+            "owned_dragon_skins": ["Normal Dragon"],
+            "owned_fruits": [],
+            "owned_swords": ["Cutlass"],
+            "owned_accessories": [],
+            "owned_races": ["Human"],
+            "perm_fruits": [],
+            "bounty": 0,
+            "faction": "Pirate",
+            "title": "Sailor",
+            "stat_resets": 1,
+            "fighting_style": "Basic"
+     import json
+import os
+import hashlib
+import time
+import random
+import sys
+import math
+from datetime import datetime
+
+# ====================== إعدادات اللعبة ======================
+ADMIN_USERNAME = "goAdmin"
+ADMIN_PASSWORD = "GalaxyMaster@2024"
+ACCOUNTS_FILE = "blox_accounts.json"
+MAX_LEVEL = 2600
+
+# ====================== كل فواكه Blox Fruits (41 فاكهة كاملة) ======================
+FRUITS = {
+    # === Common Fruits (9 فواكه) ===
+    "Rocket": {"rarity": "Common", "type": "Natural", "damage": 15, "price": 5000, "level_req": 0, "abilities": ["Rocket Punch", "Rocket Blast"], "perm_price": 80000},
+    "Spin": {"rarity": "Common", "type": "Natural", "damage": 18, "price": 7500, "level_req": 0, "abilities": ["Spin Attack", "Tornado"], "perm_price": 100000},
+    "Blade": {"rarity": "Common", "type": "Natural", "damage": 20, "price": 10000, "level_req": 0, "abilities": ["Blade Slash", "Blade Storm"], "perm_price": 120000},
+    "Spring": {"rarity": "Common", "type": "Natural", "damage": 22, "price": 12000, "level_req": 0, "abilities": ["Spring Jump", "Spring Cannon"], "perm_price": 140000},
+    "Bomb": {"rarity": "Common", "type": "Natural", "damage": 25, "price": 15000, "level_req": 0, "abilities": ["Bomb Toss", "Big Bang"], "perm_price": 160000},
+    "Smoke": {"rarity": "Common", "type": "Natural", "damage": 28, "price": 18000, "level_req": 0, "abilities": ["Smoke Screen", "Smoke Blast"], "perm_price": 180000},
+    "Spike": {"rarity": "Common", "type": "Natural", "damage": 30, "price": 20000, "level_req": 0, "abilities": ["Spike Barrage", "Spike Wall"], "perm_price": 200000},
+    "Falcon": {"rarity": "Common", "type": "Natural", "damage": 25, "price": 15000, "level_req": 0, "abilities": ["Falcon Dive", "Falcon Punch"], "perm_price": 170000},
+    "Kilo": {"rarity": "Common", "type": "Natural", "damage": 20, "price": 10000, "level_req": 0, "abilities": ["Kilo Press", "Kilo Stomp"], "perm_price": 110000},
+    
+    # === Uncommon Fruits (9 فواكه) ===
+    "Flame": {"rarity": "Uncommon", "type": "Elemental", "damage": 45, "price": 250000, "level_req": 0, "abilities": ["Fire Ball", "Flame Pillar", "Fire Flight"], "perm_price": 2500000},
+    "Ice": {"rarity": "Uncommon", "type": "Elemental", "damage": 48, "price": 350000, "level_req": 0, "abilities": ["Ice Shard", "Ice Age", "Ice Skating"], "perm_price": 3000000},
+    "Sand": {"rarity": "Uncommon", "type": "Elemental", "damage": 42, "price": 300000, "level_req": 0, "abilities": ["Sand Storm", "Desert Funeral"], "perm_price": 2800000},
+    "Dark": {"rarity": "Uncommon", "type": "Elemental", "damage": 50, "price": 400000, "level_req": 0, "abilities": ["Dark Pull", "Dark Prison", "Dark Flight"], "perm_price": 3500000},
+    "Light": {"rarity": "Uncommon", "type": "Elemental", "damage": 52, "price": 450000, "level_req": 0, "abilities": ["Light Beam", "Light Spear", "Light Flight"], "perm_price": 3800000},
+    "Magma": {"rarity": "Uncommon", "type": "Elemental", "damage": 55, "price": 500000, "level_req": 0, "abilities": ["Magma Pool", "Magma Eruption", "Magma Flight"], "perm_price": 4000000},
+    "Quake": {"rarity": "Uncommon", "type": "Natural", "damage": 60, "price": 550000, "level_req": 0, "abilities": ["Quake Punch", "Earth Shatter"], "perm_price": 4200000},
+    "Spider": {"rarity": "Uncommon", "type": "Natural", "damage": 53, "price": 480000, "level_req": 0, "abilities": ["Spider Web", "Poison Bite"], "perm_price": 3900000},
+    "Love": {"rarity": "Uncommon", "type": "Natural", "damage": 40, "price": 280000, "level_req": 0, "abilities": ["Love Beam", "Charm"], "perm_price": 2600000},
+    
+    # === Rare Fruits (7 فواكه) ===
+    "Buddha": {"rarity": "Rare", "type": "Beast", "damage": 80, "price": 1200000, "level_req": 0, "abilities": ["Giant Punch", "Shockwave", "Buddha Form"], "perm_price": 8000000},
+    "Dough": {"rarity": "Rare", "type": "Natural", "damage": 85, "price": 1800000, "level_req": 0, "abilities": ["Dough Punch", "Dough Fist", "Dough Form"], "perm_price": 10000000},
+    "Phoenix": {"rarity": "Rare", "type": "Beast", "damage": 75, "price": 1500000, "level_req": 0, "abilities": ["Phoenix Blast", "Healing Flames", "Phoenix Form"], "perm_price": 9000000},
+    "Control": {"rarity": "Rare", "type": "Natural", "damage": 70, "price": 1400000, "level_req": 0, "abilities": ["Control Sphere", "Gravity Pull"], "perm_price": 8500000},
+    "Shadow": {"rarity": "Rare", "type": "Natural", "damage": 78, "price": 1600000, "level_req": 0, "abilities": ["Shadow Step", "Shadow Domain"], "perm_price": 9500000},
+    "Venom": {"rarity": "Rare", "type": "Natural", "damage": 82, "price": 1700000, "level_req": 0, "abilities": ["Venom Spray", "Poison Pool"], "perm_price": 9800000},
+    "Gravity": {"rarity": "Rare", "type": "Natural", "damage": 68, "price": 1300000, "level_req": 0, "abilities": ["Gravity Pull", "Black Hole"], "perm_price": 8200000},
+    
+    # === Legendary Fruits (8 فواكه) ===
+    "Dragon": {"rarity": "Legendary", "type": "Beast", "damage": 150, "price": 3500000, "level_req": 0, "abilities": ["Dragon Breath", "Dragon Claw", "Dragon Transformation", "Dragon Storm", "Dragon Flight"], "perm_price": 15000000},
+    "Leopard": {"rarity": "Legendary", "type": "Beast", "damage": 140, "price": 3200000, "level_req": 0, "abilities": ["Leopard Claw", "Leopard Dash", "Leopard Form", "Wild Hunt"], "perm_price": 14000000},
+    "Kitsune": {"rarity": "Legendary", "type": "Beast", "damage": 145, "price": 3300000, "level_req": 0, "abilities": ["Fox Fire", "Kitsune Tail", "Nine Tails Form", "Mystic Flame"], "perm_price": 14500000},
+    "Spirit": {"rarity": "Legendary", "type": "Natural", "damage": 130, "price": 3000000, "level_req": 0, "abilities": ["Spirit Call", "Ghost Army", "Soul Drain"], "perm_price": 13000000},
+    "Blizzard": {"rarity": "Legendary", "type": "Elemental", "damage": 125, "price": 2800000, "level_req": 0, "abilities": ["Ice Storm", "Blizzard Zone", "Frozen Domain"], "perm_price": 12000000},
+    "Sound": {"rarity": "Legendary", "type": "Natural", "damage": 120, "price": 2700000, "level_req": 0, "abilities": ["Sound Wave", "Sonic Boom", "Music Field"], "perm_price": 11500000},
+    "Mammoth": {"rarity": "Legendary", "type": "Beast", "damage": 135, "price": 3100000, "level_req": 0, "abilities": ["Mammoth Stomp", "Tusk Attack", "Mammoth Form"], "perm_price": 13500000},
+    "T-Rex": {"rarity": "Legendary", "type": "Beast", "damage": 138, "price": 3150000, "level_req": 0, "abilities": ["T-Rex Bite", "Tail Swing", "T-Rex Form"], "perm_price": 13800000},
+    
+    # === Mythical Fruits (8 فواكه) ===
+    "Leo": {"rarity": "Mythical", "type": "Beast", "damage": 160, "price": 5000000, "level_req": 0, "abilities": ["Leo Roar", "King's Claw", "Leo Form", "Royal Pride"], "perm_price": 20000000},
+    "Yeti": {"rarity": "Mythical", "type": "Beast", "damage": 155, "price": 4800000, "level_req": 0, "abilities": ["Yeti Freeze", "Ice Punch", "Yeti Form", "Snow Storm"], "perm_price": 19000000},
+    "Gas": {"rarity": "Mythical", "type": "Elemental", "damage": 148, "price": 4500000, "level_req": 0, "abilities": ["Gas Cloud", "Poison Gas", "Gas Form", "Explosion"], "perm_price": 18000000},
+}
+
+# فاكهة المجره (الحصرية للأدمن goAdmin)
+GALAXY_FRUIT = {
+    "name": "Galaxy Fruit",
+    "rarity": "Admin",
+    "type": "Mythical",
+    "damage": 999,
+    "price": 99999999,
+    "level_req": 0,
+    "abilities": {
+        "1": {"name": "Galactic Cloak", "description": "تختفي وتصبح غير مرئي لمدة 5 ثواني", "damage": 0, "cooldown": 15},
+        "2": {"name": "Star Portal", "description": "تفتح بوابة نجمية وتنتقل لأي مكان", "damage": 0, "cooldown": 10},
+        "3": {"name": "Supernova Strike", "description": "تضرب بانفجار مستعر أعظم", "damage": 999, "cooldown": 20},
+        "4": {"name": "Asteroid Rain", "description": "تمطر السماء بالكويكبات", "damage": 750, "cooldown": 25},
+        "5": {"name": "Black Hole", "description": "تخلق ثقب أسود يبتلع كل شيء", "damage": 850, "cooldown": 30},
+        "6": {"name": "Galaxy Flight", "description": "تطير بسرعة الضوء وتضرب كل من تمر بجانبه", "damage": 500, "cooldown": 5}
+    },
+    "flight_speed": 25,
+    "description": "⭐ فاكهة المجرات - حصرية للأدمن goAdmin فقط ⭐"
+}
+
+# ====================== كل السيوف في اللعبة ======================
+SWORDS = {
+    "Cutlass": {"damage": 15, "price": 1000, "level_req": 0, "abilities": ["Slash", "Stab"]},
+    "Katana": {"damage": 20, "price": 5000, "level_req": 10, "abilities": ["Quick Slash", "Dash"]},
+    "Twin Hooks": {"damage": 25, "price": 15000, "level_req": 30, "abilities": ["Hook Pull", "Spin Attack"]},
+    "Iron Mace": {"damage": 30, "price": 30000, "level_req": 50, "abilities": ["Heavy Smash", "Ground Pound"]},
+    "Shark Saw": {"damage": 35, "price": 50000, "level_req": 100, "abilities": ["Saw Blade", "Water Slash"]},
+    "Soul Cane": {"damage": 40, "price": 100000, "level_req": 150, "abilities": ["Soul Drain", "Life Steal"]},
+    "Gravity Cane": {"damage": 45, "price": 150000, "level_req": 200, "abilities": ["Gravity Pull", "Black Orb"]},
+    "Bisento": {"damage": 55, "price": 250000, "level_req": 300, "abilities": ["Whirlwind", "Earth Split"]},
+    "Dragon Trident": {"damage": 65, "price": 500000, "level_req": 500, "abilities": ["Dragon Flame", "Trident Throw"]},
+    "Saber V2": {"damage": 70, "price": 750000, "level_req": 700, "abilities": ["Lightning Slash", "Thunder Strike"]},
+    "Midnight Blade": {"damage": 75, "price": 1000000, "level_req": 900, "abilities": ["Dark Slash", "Shadow Step"]},
+    "True Triple Katana": {"damage": 85, "price": 1500000, "level_req": 1100, "abilities": ["Triple Slash", "Sword Dance"]},
+    "Dark Blade": {"damage": 100, "price": 2500000, "level_req": 1300, "abilities": ["Dark Slash", "Void Strike"]},
+    "Hallow Scythe": {"damage": 95, "price": 2000000, "level_req": 1200, "abilities": ["Soul Reap", "Death's Scythe"]},
+    "Yama": {"damage": 110, "price": 3000000, "level_req": 1500, "abilities": ["Inferno Slash", "Hell Fire"]},
+    "Tushita": {"damage": 115, "price": 3500000, "level_req": 1700, "abilities": ["Divine Slash", "Holy Light"]},
+    "Cursed Dual Katana": {"damage": 130, "price": 5000000, "level_req": 2000, "abilities": ["Cursed Slash", "Dual Wield"]},
+}
+
+# ====================== الأورا والجلود ======================
+AURAS = {
+    "None": {"price": 0, "color": "White", "level_req": 0},
+    "Red Aura": {"price": 50000, "color": "Red", "level_req": 100},
+    "Blue Aura": {"price": 50000, "color": "Blue", "level_req": 100},
+    "Green Aura": {"price": 50000, "color": "Green", "level_req": 100},
+    "Golden Aura": {"price": 200000, "color": "Gold", "level_req": 500},
+    "Dark Aura": {"price": 300000, "color": "Purple", "level_req": 750},
+    "Dragon Aura": {"price": 1000000, "color": "Orange-Red", "level_req": 1500},
+    "Galaxy Aura": {"price": 5000000, "color": "Rainbow", "level_req": 2000},
+    "Admin Aura": {"price": 0, "color": "Rainbow-Gold", "level_req": 0, "admin_only": True},
+}
+
+DRAGON_SKINS = {
+    "Normal Dragon": {"price": 0, "color": "Red", "level_req": 0},
+    "Azure Dragon": {"price": 500000, "color": "Blue", "level_req": 1000},
+    "Golden Dragon": {"price": 2000000, "color": "Gold", "level_req": 2000},
+    "Shadow Dragon": {"price": 3000000, "color": "Black", "level_req": 2300},
+    "Admin Dragon": {"price": 0, "color": "Rainbow", "level_req": 0, "admin_only": True},
+}
+
+# ====================== الأكسسوارات ======================
+ACCESSORIES = {
+    "Dark Coat": {"stats": {"health": 500, "damage": 50}, "price": 100000, "level_req": 500},
+    "Ghoul Mask": {"stats": {"health": 300, "speed": 20}, "price": 150000, "level_req": 750},
+    "Valkyrie Helmet": {"stats": {"damage": 75, "health": 400}, "price": 200000, "level_req": 1000},
+    "Swan Glasses": {"stats": {"observation": 30}, "price": 80000, "level_req": 300},
+    "Pilot Helmet": {"stats": {"speed": 25}, "price": 120000, "level_req": 400},
+    "Pink Coat": {"stats": {"health": 200, "charm": 10}, "price": 60000, "level_req": 200},
+}
+
+# ====================== القبائل ======================
+RACES = {
+    "Human": {"bonus": {"damage": 10}, "unlock_level": 0},
+    "Rabbit": {"bonus": {"speed": 30}, "unlock_level": 100},
+    "Shark": {"bonus": {"health": 500, "swim_speed": 50}, "unlock_level": 200},
+    "Angel": {"bonus": {"health_regen": 20}, "unlock_level": 300},
+    "Ghoul": {"bonus": {"life_steal": 15}, "unlock_level": 500},
+    "Cyborg": {"bonus": {"energy": 50, "damage": 20}, "unlock_level": 800},
+}
+
+# ====================== الجزر والبحار ======================
+SEAS = {
+    "First Sea": {
+        "level_range": (1, 700),
+        "islands": [
+            {"name": "Starter Island", "level_req": 1, "enemies": ["Bandit", "Pirate"], "boss": None},
+            {"name": "Pirate Village", "level_req": 10, "enemies": ["Pirate Captain", "Brute"], "boss": "Bobby"},
+            {"name": "Desert Island", "level_req": 30, "enemies": ["Sand Warrior", "Mummy"], "boss": "Saw"},
+            {"name": "Frozen Village", "level_req": 60, "enemies": ["Snow Bandit", "Yeti"], "boss": "Yeti"},
+            {"name": "Marine Base", "level_req": 90, "enemies": ["Marine", "Marine Captain"], "boss": "Vice Admiral"},
+            {"name": "Skylands", "level_req": 150, "enemies": ["Sky Warrior", "Thunder God"], "boss": "Thunder God"},
+            {"name": "Prison", "level_req": 200, "enemies": ["Guard", "Prisoner"], "boss": "Warden"},
+            {"name": "Colosseum", "level_req": 250, "enemies": ["Gladiator", "Champion"], "boss": "Diamond"},
+            {"name": "Magma Village", "level_req": 300, "enemies": ["Magma Creature", "Fire Demon"], "boss": "Magma Admiral"},
+            {"name": "Underwater City", "level_req": 375, "enemies": ["Mermaid", "Shark"], "boss": "Sea King"},
+            {"name": "Fountain City", "level_req": 450, "enemies": ["Water Warrior", "Tidal"], "boss": "Tide Keeper"},
+            {"name": "Marine Fortress", "level_req": 550, "enemies": ["Elite Marine", "Canon"], "boss": "Marine Admiral"},
+            {"name": "Upper Skylands", "level_req": 650, "enemies": ["Sky Guardian", "Lightning"], "boss": "God of Lightning"},
+        ]
+    },
+    "Second Sea": {
+        "level_range": (700, 1450),
+        "islands": [
+            {"name": "Kingdom of Rose", "level_req": 700, "enemies": ["Pirate", "Mercenary"], "boss": "Jeremy"},
+            {"name": "Green Zone", "level_req": 775, "enemies": ["Musketeer", "Swordsman"], "boss": "Dragon"},
+            {"name": "Graveyard", "level_req": 850, "enemies": ["Ghost", "Skeleton"], "boss": "Reaper"},
+            {"name": "Snow Mountain", "level_req": 925, "enemies": ["Ice Warrior", "Frost"], "boss": "Frost Queen"},
+            {"name": "Hot and Cold", "level_req": 1000, "enemies": ["Flame Knight", "Ice Knight"], "boss": "Phoenix"},
+            {"name": "Cursed Ship", "level_req": 1075, "enemies": ["Cursed Pirate", "Phantom"], "boss": "Cursed Captain"},
+            {"name": "Ice Castle", "level_req": 1150, "enemies": ["Ice Guard", "Snow Golem"], "boss": "Ice Admiral"},
+            {"name": "Forgotten Island", "level_req": 1225, "enemies": ["Ancient Warrior", "Temple Guard"], "boss": "Ancient One"},
+            {"name": "Usoapp's Island", "level_req": 1300, "enemies": ["Usoapp", "Sniper"], "boss": "Usoapp"},
+            {"name": "Great Tree", "level_req": 1375, "enemies": ["Tree Spirit", "Forest Guardian"], "boss": "Great Tree Boss"},
+        ]
+    },
+    "Third Sea": {
+        "level_range": (1450, 2600),
+        "islands": [
+            {"name": "Port Town", "level_req": 1450, "enemies": ["Bandit", "Thug"], "boss": "Don Swan"},
+            {"name": "Hydra Island", "level_req": 1550, "enemies": ["Hydra Warrior", "Serpent"], "boss": "Hydra King"},
+            {"name": "Great Wall", "level_req": 1650, "enemies": ["Wall Guard", "Archer"], "boss": "General"},
+            {"name": "Floating Turtle", "level_req": 1750, "enemies": ["Turtle Warrior", "Shell"], "boss": "Turtle King"},
+            {"name": "Mansion", "level_req": 1900, "enemies": ["Maid", "Butler"], "boss": "Lord"},
+            {"name": "Castle on the Sea", "level_req": 2050, "enemies": ["Knight", "Royal Guard"], "boss": "King"},
+            {"name": "Cake Island", "level_req": 2200, "enemies": ["Chef", "Sweet Guard"], "boss": "Big Mom"},
+            {"name": "Elite Island", "level_req": 2400, "enemies": ["Elite Warrior", "Champion"], "boss": "Elite Boss"},
+            {"name": "Sea of Treats", "level_req": 2550, "enemies": ["Candy Warrior", "Sweet Monster"], "boss": "Candy King"},
+        ]
+    }
+}
+
+# ====================== دوال الحفظ والتحميل ======================
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def save_accounts(accounts):
+    with open(ACCOUNTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(accounts, f, indent=4, ensure_ascii=False)
+
+def load_accounts():
+    if os.path.exists(ACCOUNTS_FILE):
+        with open(ACCOUNTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+# ====================== نظام تسجيل الدخول ======================
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def register():
+    clear_screen()
+    print("=" * 70)
+    print("                     📝 إنشاء حساب جديد 📝")
+    print("=" * 70)
+    
+    username = input("\nأدخل اسم المستخدم الجديد: ").strip()
+    
+    accounts = load_accounts()
+    if username in accounts:
+        print("\n⚠️ الاسم موجود بالفعل!")
+        time.sleep(1.5)
+        return None
+    
+    password = input("أدخل كلمة المرور: ").strip()
+    confirm = input("أكد كلمة المرور: ").strip()
+    
+    if password != confirm:
+        print("\n⚠️ كلمة المرور غير متطابقة!")
+        time.sleep(1.5)
+        return None
+    
+    is_admin = (username == ADMIN_USERNAME)
+    
+    if is_admin:
+        # حساب الأدمن goAdmin - عنده كل حاجة غير محدودة
+        player_data = {
+            "password": hash_password(password),
+            "is_admin": True,
+            "level": MAX_LEVEL,
+            "exp": 0,
+            "hp": 25500,
+            "max_hp": 25500,
+            "current_fruit": "Galaxy Fruit",
+            "beli": 999999999999,
+            "frags": 999999999,
+            "position": "Third Sea",
+            "current_island": "Castle on the Sea",
+            "aura": "Admin Aura",
+            "dragon_skin": "Admin Dragon",
+            "race": "Cyborg",
+            "current_sword": "Cursed Dual Katana",
+            "current_accessory": "Dark Coat",
+            "owned_auras": list(AURAS.keys()),
+            "owned_dragon_skins": list(DRAGON_SKINS.keys()),
+            "owned_fruits": list(FRUITS.keys()) + ["Galaxy Fruit"],
+            "owned_swords": list(SWORDS.keys()),
+            "owned_accessories": list(ACCESSORIES.keys()),
+            "owned_races": list(RACES.keys()),
+            "perm_fruits": list(FRUITS.keys()) + ["Galaxy Fruit"],
+            "bounty": 30000000,
+            "faction": "Pirate",
+            "title": "☠️ Sea Emperor ☠️",
+            "stat_resets": 999999,
+            "fighting_style": "Dragon Talon"
+        }
+    else:
+        player_data = {
+            "password": hash_password(password),
+            "is_admin": False,
+            "level": 1,
+            "exp": 0,
+            "hp": 100,
+            "max_hp": 100,
+            "current_fruit": None,
+            "beli": 5000,
+            "frags": 0,
+            "position": "First Sea",
+            "current_island": "Starter Island",
+            "aura": "None",
+            "dragon_skin": "Normal Dragon",
+            "race": "Human",
+            "current_sword": "Cutlass",
+            "current_accessory": None,
+            "owned_auras": ["None"],
+            "owned_dragon_skins": ["Normal Dragon"],
+            "owned_fruits": [],
+            "owned_swords": ["Cutlass"],
+            "owned_accessories": [],
+            "owned_races": ["Human"],
+            "perm_fruits": [],
+            "bounty": 0,
+            "faction": "Pirate",
+            "title": "Sailor",
+            "stat_resets": 1,
+            "fighting_style": "Basic"
+     
