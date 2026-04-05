@@ -1,213 +1,368 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⚔️ Ocean Legends | Blox Edition</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<style>
-    :root {
-        --gold: #f0a500; --deep: #050810; --ocean: #0d1f3c; --card: #1a2540;
+"""
+BLOX FRUITS - لعبة أونلاين كاملة
+تشغيل السيرفر: python blox_fruits.py --server
+تشغيل العميل:   python blox_fruits.py --client
+"""
+
+import json
+import os
+import hashlib
+import time
+import random
+import sys
+import math
+import argparse
+import asyncio
+import threading
+from datetime import datetime
+
+# ====================== إعدادات الشبكة ======================
+SERVER_IP = "0.0.0.0"
+SERVER_PORT = 8765
+MAX_LEVEL = 2600
+ADMIN_USERNAME = "goAdmin"
+ADMIN_PASSWORD = "GalaxyMaster@2024"
+ACCOUNTS_FILE = "blox_accounts.json"
+
+# ====================== كل فواكه Blox Fruits (41 فاكهة) ======================
+FRUITS = {
+    "Rocket": {"rarity": "Common", "type": "Natural", "damage": 15, "price": 5000, "level_req": 0, "abilities": ["Rocket Punch", "Rocket Blast"]},
+    "Spin": {"rarity": "Common", "type": "Natural", "damage": 18, "price": 7500, "level_req": 0, "abilities": ["Spin Attack", "Tornado"]},
+    "Blade": {"rarity": "Common", "type": "Natural", "damage": 20, "price": 10000, "level_req": 0, "abilities": ["Blade Slash", "Blade Storm"]},
+    "Spring": {"rarity": "Common", "type": "Natural", "damage": 22, "price": 12000, "level_req": 0, "abilities": ["Spring Jump", "Spring Cannon"]},
+    "Bomb": {"rarity": "Common", "type": "Natural", "damage": 25, "price": 15000, "level_req": 0, "abilities": ["Bomb Toss", "Big Bang"]},
+    "Smoke": {"rarity": "Common", "type": "Natural", "damage": 28, "price": 18000, "level_req": 0, "abilities": ["Smoke Screen", "Smoke Blast"]},
+    "Spike": {"rarity": "Common", "type": "Natural", "damage": 30, "price": 20000, "level_req": 0, "abilities": ["Spike Barrage", "Spike Wall"]},
+    "Falcon": {"rarity": "Common", "type": "Natural", "damage": 25, "price": 15000, "level_req": 0, "abilities": ["Falcon Dive", "Falcon Punch"]},
+    "Kilo": {"rarity": "Common", "type": "Natural", "damage": 20, "price": 10000, "level_req": 0, "abilities": ["Kilo Press", "Kilo Stomp"]},
+    "Flame": {"rarity": "Uncommon", "type": "Elemental", "damage": 45, "price": 250000, "level_req": 0, "abilities": ["Fire Ball", "Flame Pillar", "Fire Flight"]},
+    "Ice": {"rarity": "Uncommon", "type": "Elemental", "damage": 48, "price": 350000, "level_req": 0, "abilities": ["Ice Shard", "Ice Age", "Ice Skating"]},
+    "Sand": {"rarity": "Uncommon", "type": "Elemental", "damage": 42, "price": 300000, "level_req": 0, "abilities": ["Sand Storm", "Desert Funeral"]},
+    "Dark": {"rarity": "Uncommon", "type": "Elemental", "damage": 50, "price": 400000, "level_req": 0, "abilities": ["Dark Pull", "Dark Prison", "Dark Flight"]},
+    "Light": {"rarity": "Uncommon", "type": "Elemental", "damage": 52, "price": 450000, "level_req": 0, "abilities": ["Light Beam", "Light Spear", "Light Flight"]},
+    "Magma": {"rarity": "Uncommon", "type": "Elemental", "damage": 55, "price": 500000, "level_req": 0, "abilities": ["Magma Pool", "Magma Eruption", "Magma Flight"]},
+    "Quake": {"rarity": "Uncommon", "type": "Natural", "damage": 60, "price": 550000, "level_req": 0, "abilities": ["Quake Punch", "Earth Shatter"]},
+    "Spider": {"rarity": "Uncommon", "type": "Natural", "damage": 53, "price": 480000, "level_req": 0, "abilities": ["Spider Web", "Poison Bite"]},
+    "Love": {"rarity": "Uncommon", "type": "Natural", "damage": 40, "price": 280000, "level_req": 0, "abilities": ["Love Beam", "Charm"]},
+    "Buddha": {"rarity": "Rare", "type": "Beast", "damage": 80, "price": 1200000, "level_req": 0, "abilities": ["Giant Punch", "Shockwave", "Buddha Form"]},
+    "Dough": {"rarity": "Rare", "type": "Natural", "damage": 85, "price": 1800000, "level_req": 0, "abilities": ["Dough Punch", "Dough Fist", "Dough Form"]},
+    "Phoenix": {"rarity": "Rare", "type": "Beast", "damage": 75, "price": 1500000, "level_req": 0, "abilities": ["Phoenix Blast", "Healing Flames", "Phoenix Form"]},
+    "Control": {"rarity": "Rare", "type": "Natural", "damage": 70, "price": 1400000, "level_req": 0, "abilities": ["Control Sphere", "Gravity Pull"]},
+    "Shadow": {"rarity": "Rare", "type": "Natural", "damage": 78, "price": 1600000, "level_req": 0, "abilities": ["Shadow Step", "Shadow Domain"]},
+    "Venom": {"rarity": "Rare", "type": "Natural", "damage": 82, "price": 1700000, "level_req": 0, "abilities": ["Venom Spray", "Poison Pool"]},
+    "Gravity": {"rarity": "Rare", "type": "Natural", "damage": 68, "price": 1300000, "level_req": 0, "abilities": ["Gravity Pull", "Black Hole"]},
+    "Dragon": {"rarity": "Legendary", "type": "Beast", "damage": 150, "price": 3500000, "level_req": 0, "abilities": ["Dragon Breath", "Dragon Claw", "Dragon Transformation", "Dragon Storm", "Dragon Flight"]},
+    "Leopard": {"rarity": "Legendary", "type": "Beast", "damage": 140, "price": 3200000, "level_req": 0, "abilities": ["Leopard Claw", "Leopard Dash", "Leopard Form", "Wild Hunt"]},
+    "Kitsune": {"rarity": "Legendary", "type": "Beast", "damage": 145, "price": 3300000, "level_req": 0, "abilities": ["Fox Fire", "Kitsune Tail", "Nine Tails Form", "Mystic Flame"]},
+    "Spirit": {"rarity": "Legendary", "type": "Natural", "damage": 130, "price": 3000000, "level_req": 0, "abilities": ["Spirit Call", "Ghost Army", "Soul Drain"]},
+    "Blizzard": {"rarity": "Legendary", "type": "Elemental", "damage": 125, "price": 2800000, "level_req": 0, "abilities": ["Ice Storm", "Blizzard Zone", "Frozen Domain"]},
+    "Sound": {"rarity": "Legendary", "type": "Natural", "damage": 120, "price": 2700000, "level_req": 0, "abilities": ["Sound Wave", "Sonic Boom", "Music Field"]},
+    "Mammoth": {"rarity": "Legendary", "type": "Beast", "damage": 135, "price": 3100000, "level_req": 0, "abilities": ["Mammoth Stomp", "Tusk Attack", "Mammoth Form"]},
+    "T-Rex": {"rarity": "Legendary", "type": "Beast", "damage": 138, "price": 3150000, "level_req": 0, "abilities": ["T-Rex Bite", "Tail Swing", "T-Rex Form"]},
+    "Leo": {"rarity": "Mythical", "type": "Beast", "damage": 160, "price": 5000000, "level_req": 0, "abilities": ["Leo Roar", "King's Claw", "Leo Form", "Royal Pride"]},
+    "Yeti": {"rarity": "Mythical", "type": "Beast", "damage": 155, "price": 4800000, "level_req": 0, "abilities": ["Yeti Freeze", "Ice Punch", "Yeti Form", "Snow Storm"]},
+    "Gas": {"rarity": "Mythical", "type": "Elemental", "damage": 148, "price": 4500000, "level_req": 0, "abilities": ["Gas Cloud", "Poison Gas", "Gas Form", "Explosion"]},
+}
+
+# فاكهة المجره للأدمن
+GALAXY_FRUIT = {
+    "name": "Galaxy Fruit",
+    "rarity": "Admin",
+    "type": "Mythical",
+    "damage": 999,
+    "price": 99999999,
+    "level_req": 0,
+    "abilities": {
+        "1": {"name": "Galactic Cloak", "description": "تختفي وتصبح غير مرئي لمدة 5 ثواني", "damage": 0, "cooldown": 15},
+        "2": {"name": "Star Portal", "description": "تفتح بوابة نجمية وتنتقل لأي مكان", "damage": 0, "cooldown": 10},
+        "3": {"name": "Supernova Strike", "description": "تضرب بانفجار مستعر أعظم", "damage": 999, "cooldown": 20},
+        "4": {"name": "Asteroid Rain", "description": "تمطر السماء بالكويكبات", "damage": 750, "cooldown": 25},
+        "5": {"name": "Black Hole", "description": "تخلق ثقب أسود يبتلع كل شيء", "damage": 850, "cooldown": 30},
+        "6": {"name": "Galaxy Flight", "description": "تطير بسرعة الضوء وتضرب كل من تمر بجانبه", "damage": 500, "cooldown": 5}
+    },
+    "flight_speed": 25,
+}
+
+# ====================== السيوف ======================
+SWORDS = {
+    "Cutlass": {"damage": 15, "price": 1000, "level_req": 0},
+    "Katana": {"damage": 20, "price": 5000, "level_req": 10},
+    "Twin Hooks": {"damage": 25, "price": 15000, "level_req": 30},
+    "Iron Mace": {"damage": 30, "price": 30000, "level_req": 50},
+    "Shark Saw": {"damage": 35, "price": 50000, "level_req": 100},
+    "Soul Cane": {"damage": 40, "price": 100000, "level_req": 150},
+    "Gravity Cane": {"damage": 45, "price": 150000, "level_req": 200},
+    "Bisento": {"damage": 55, "price": 250000, "level_req": 300},
+    "Dragon Trident": {"damage": 65, "price": 500000, "level_req": 500},
+    "Saber V2": {"damage": 70, "price": 750000, "level_req": 700},
+    "Midnight Blade": {"damage": 75, "price": 1000000, "level_req": 900},
+    "True Triple Katana": {"damage": 85, "price": 1500000, "level_req": 1100},
+    "Dark Blade": {"damage": 100, "price": 2500000, "level_req": 1300},
+    "Hallow Scythe": {"damage": 95, "price": 2000000, "level_req": 1200},
+    "Yama": {"damage": 110, "price": 3000000, "level_req": 1500},
+    "Tushita": {"damage": 115, "price": 3500000, "level_req": 1700},
+    "Cursed Dual Katana": {"damage": 130, "price": 5000000, "level_req": 2000},
+}
+
+# ====================== الأورا والجلود ======================
+AURAS = {
+    "None": {"price": 0, "color": "White", "level_req": 0},
+    "Red Aura": {"price": 50000, "color": "Red", "level_req": 100},
+    "Blue Aura": {"price": 50000, "color": "Blue", "level_req": 100},
+    "Green Aura": {"price": 50000, "color": "Green", "level_req": 100},
+    "Golden Aura": {"price": 200000, "color": "Gold", "level_req": 500},
+    "Dark Aura": {"price": 300000, "color": "Purple", "level_req": 750},
+    "Dragon Aura": {"price": 1000000, "color": "Orange-Red", "level_req": 1500},
+    "Galaxy Aura": {"price": 5000000, "color": "Rainbow", "level_req": 2000},
+    "Admin Aura": {"price": 0, "color": "Rainbow-Gold", "level_req": 0, "admin_only": True},
+}
+
+# ====================== القبائل ======================
+RACES = {
+    "Human": {"bonus": {"damage": 10}, "unlock_level": 0},
+    "Rabbit": {"bonus": {"speed": 30}, "unlock_level": 100},
+    "Shark": {"bonus": {"health": 500, "swim_speed": 50}, "unlock_level": 200},
+    "Angel": {"bonus": {"health_regen": 20}, "unlock_level": 300},
+    "Ghoul": {"bonus": {"life_steal": 15}, "unlock_level": 500},
+    "Cyborg": {"bonus": {"energy": 50, "damage": 20}, "unlock_level": 800},
+}
+
+# ====================== الجزر والبحار ======================
+SEAS = {
+    "First Sea": {
+        "level_range": (1, 700),
+        "islands": [
+            {"name": "Starter Island", "level_req": 1, "enemies": ["Bandit", "Pirate"]},
+            {"name": "Pirate Village", "level_req": 10, "enemies": ["Pirate Captain", "Brute"]},
+            {"name": "Desert Island", "level_req": 30, "enemies": ["Sand Warrior", "Mummy"]},
+            {"name": "Frozen Village", "level_req": 60, "enemies": ["Snow Bandit", "Yeti"]},
+            {"name": "Marine Base", "level_req": 90, "enemies": ["Marine", "Marine Captain"]},
+            {"name": "Skylands", "level_req": 150, "enemies": ["Sky Warrior", "Thunder God"]},
+            {"name": "Prison", "level_req": 200, "enemies": ["Guard", "Prisoner"]},
+            {"name": "Colosseum", "level_req": 250, "enemies": ["Gladiator", "Champion"]},
+            {"name": "Magma Village", "level_req": 300, "enemies": ["Magma Creature", "Fire Demon"]},
+            {"name": "Underwater City", "level_req": 375, "enemies": ["Mermaid", "Shark"]},
+            {"name": "Fountain City", "level_req": 450, "enemies": ["Water Warrior", "Tidal"]},
+            {"name": "Marine Fortress", "level_req": 550, "enemies": ["Elite Marine", "Canon"]},
+            {"name": "Upper Skylands", "level_req": 650, "enemies": ["Sky Guardian", "Lightning"]},
+        ]
+    },
+    "Second Sea": {
+        "level_range": (700, 1450),
+        "islands": [
+            {"name": "Kingdom of Rose", "level_req": 700, "enemies": ["Pirate", "Mercenary"]},
+            {"name": "Green Zone", "level_req": 775, "enemies": ["Musketeer", "Swordsman"]},
+            {"name": "Graveyard", "level_req": 850, "enemies": ["Ghost", "Skeleton"]},
+            {"name": "Snow Mountain", "level_req": 925, "enemies": ["Ice Warrior", "Frost"]},
+            {"name": "Hot and Cold", "level_req": 1000, "enemies": ["Flame Knight", "Ice Knight"]},
+            {"name": "Cursed Ship", "level_req": 1075, "enemies": ["Cursed Pirate", "Phantom"]},
+            {"name": "Ice Castle", "level_req": 1150, "enemies": ["Ice Guard", "Snow Golem"]},
+            {"name": "Forgotten Island", "level_req": 1225, "enemies": ["Ancient Warrior", "Temple Guard"]},
+            {"name": "Usoapp's Island", "level_req": 1300, "enemies": ["Usoapp", "Sniper"]},
+            {"name": "Great Tree", "level_req": 1375, "enemies": ["Tree Spirit", "Forest Guardian"]},
+        ]
+    },
+    "Third Sea": {
+        "level_range": (1450, 2600),
+        "islands": [
+            {"name": "Port Town", "level_req": 1450, "enemies": ["Bandit", "Thug"]},
+            {"name": "Hydra Island", "level_req": 1550, "enemies": ["Hydra Warrior", "Serpent"]},
+            {"name": "Great Wall", "level_req": 1650, "enemies": ["Wall Guard", "Archer"]},
+            {"name": "Floating Turtle", "level_req": 1750, "enemies": ["Turtle Warrior", "Shell"]},
+            {"name": "Mansion", "level_req": 1900, "enemies": ["Maid", "Butler"]},
+            {"name": "Castle on the Sea", "level_req": 2050, "enemies": ["Knight", "Royal Guard"]},
+            {"name": "Cake Island", "level_req": 2200, "enemies": ["Chef", "Sweet Guard"]},
+            {"name": "Elite Island", "level_req": 2400, "enemies": ["Elite Warrior", "Champion"]},
+            {"name": "Sea of Treats", "level_req": 2550, "enemies": ["Candy Warrior", "Sweet Monster"]},
+        ]
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Cairo', sans-serif; background: var(--deep); color: white; overflow: hidden; }
+}
 
-    /* ----- شاشة اختيار الشخصية (Character Select) ----- */
-    #selection-screen {
-        position: fixed; inset: 0; z-index: 2000;
-        background: radial-gradient(circle, var(--ocean), var(--deep));
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-    }
-    .selection-container {
-        display: flex; gap: 30px; margin: 40px 0;
-    }
-    .skin-card {
-        width: 180px; height: 260px; background: var(--card); border: 2px solid #2a3a5c;
-        border-radius: 20px; cursor: pointer; transition: 0.3s; position: relative;
-        overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    }
-    .skin-card:hover { border-color: var(--gold); transform: translateY(-10px); box-shadow: 0 10px 30px var(--gold); }
-    .skin-card.active { border-color: var(--gold); background: rgba(240, 165, 0, 0.1); }
-    .skin-img { width: 100px; height: 120px; background: #333; border-radius: 10px; margin-bottom: 15px; }
+# ====================== دوال مساعدة ======================
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-    /* ----- واجهة اللعبة الأصلية (Typical Blox Fruits UI) ----- */
-    #game-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
-    #game-ui * { pointer-events: auto; }
-    
-    .stats-panel { position: fixed; bottom: 20px; right: 20px; width: 300px; background: rgba(0,0,0,0.8); border-radius: 15px; padding: 15px; border-bottom: 4px solid var(--gold); }
-    .stat-row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 14px; }
-    .progress-bar { width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin-top: 3px; }
-    .progress-fill { height: 100%; width: 50%; transition: 0.3s; }
+def save_accounts(accounts):
+    with open(ACCOUNTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(accounts, f, indent=4, ensure_ascii=False)
 
-    /* ----- العالم والبحار ----- */
-    #viewport { width: 100vw; height: 100vh; overflow: hidden; }
-    #ocean-world {
-        position: absolute; width: 15000px; height: 15000px;
-        background: #0a162b url('https://www.transparenttextures.com/patterns/dark-matter.png');
-    }
+def load_accounts():
+    if os.path.exists(ACCOUNTS_FILE):
+        with open(ACCOUNTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
 
-    /* الجزيرة */
-    .island {
-        position: absolute; border-radius: 50%; background: #2d5a27;
-        box-shadow: 0 0 50px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
-    }
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-    /* السفينة / اللاعب */
-    .player-entity { position: absolute; width: 60px; height: 60px; transition: 0.1s linear; }
-    .ship-body { width: 40px; height: 60px; background: #8b4513; border-radius: 50% 50% 10% 10%; border: 3px solid #3e1f08; }
-    .admin-glow { box-shadow: 0 0 30px var(--gold); border: 2px solid white !important; }
+def get_local_ip():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
 
-    /* الأدمن منيو */
-    #admin-menu {
-        position: fixed; left: 20px; top: 20px; background: rgba(0,0,0,0.9);
-        padding: 20px; border-radius: 15px; border-left: 5px solid var(--gold); display: none;
-    }
-</style>
-</head>
-<body>
-
-<div id="selection-screen">
-    <h1 style="font-family: 'Cinzel'; color: var(--gold); font-size: 3rem;">OCEAN LEGENDS</h1>
-    <p>اختر السكن الخاص بك قبل الإبحار</p>
-    
-    <div class="selection-container">
-        <div class="skin-card active" onclick="selectSkin('Pirate', this)">
-            <div class="skin-img" style="background: #e53e3e;"></div>
-            <b>قبطان القراصنة</b>
-        </div>
-        <div class="skin-card" onclick="selectSkin('Marine', this)">
-            <div class="skin-img" style="background: #3182ce;"></div>
-            <b>جندي البحرية</b>
-        </div>
-        <div class="skin-card" onclick="selectSkin('Admin', this)">
-            <div class="skin-img" style="background: gold;"></div>
-            <b style="color: gold;">حاكم البحار (أدمن)</b>
-            <p style="font-size: 10px;">يتطلب كود الإدارة</p>
-        </div>
-    </div>
-
-    <input type="text" id="player-name" placeholder="ادخل اسمك..." style="padding: 12px; border-radius: 10px; border: none; width: 250px; text-align: center; margin-bottom: 20px;">
-    <input type="password" id="admin-pass" placeholder="كود الأدمن (اختياري)" style="padding: 12px; border-radius: 10px; border: none; width: 250px; text-align: center;">
-    
-    <button onclick="startGame()" style="margin-top: 30px; padding: 15px 60px; background: var(--gold); border: none; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 1.2rem;">إبحار (Enter Game)</button>
-</div>
-
-<div id="game-ui">
-    <div id="admin-menu">
-        <h3 style="color: var(--gold);">لوحة التحكم العليا 👑</h3>
-        <button onclick="setStat('gold', Infinity)" style="width:100%; margin-top:10px; padding:5px;">ذهب لا نهائي</button>
-        <button onclick="setStat('level', 1000)" style="width:100%; margin-top:10px; padding:5px;">ليفل ماكس</button>
-        <button onclick="giveFruit('Admin-God')" style="width:100%; margin-top:10px; padding:5px;">فاكهة الأدمن</button>
-    </div>
-
-    <div class="stats-panel">
-        <div class="stat-row"><span>المستوى:</span> <span id="ui-level">1</span></div>
-        <div class="progress-bar"><div id="exp-bar" class="progress-fill" style="background: var(--gold); width: 10%;"></div></div>
+# ====================== كلاس اللاعب ======================
+class Player:
+    def __init__(self, username, from_save=True):
+        self.username = username
+        self.is_admin = (username == ADMIN_USERNAME)
         
-        <div class="stat-row" style="margin-top:10px;"><span>الصحة (Health):</span> <span id="ui-hp">100/100</span></div>
-        <div class="progress-bar"><div id="hp-bar" class="progress-fill" style="background: #e53e3e; width: 100%;"></div></div>
+        if from_save:
+            self.load_from_save()
+        else:
+            self.init_new_player()
+    
+    def init_new_player(self):
+        if self.is_admin:
+            self.level = MAX_LEVEL
+            self.hp = 25500
+            self.max_hp = 25500
+            self.fruit = GALAXY_FRUIT.copy()
+            self.current_sword = "Cursed Dual Katana"
+            self.aura = "Admin Aura"
+            self.race = "Cyborg"
+            self.beli = 999999999999
+            self.frags = 999999999
+            self.position = "Third Sea"
+            self.current_island = "Castle on the Sea"
+            self.owned_fruits = list(FRUITS.keys()) + ["Galaxy Fruit"]
+            self.owned_swords = list(SWORDS.keys())
+            self.owned_auras = list(AURAS.keys())
+            self.owned_races = list(RACES.keys())
+            self.perm_fruits = list(FRUITS.keys()) + ["Galaxy Fruit"]
+            self.title = "☠️ Sea Emperor ☠️"
+            self.bounty = 30000000
+        else:
+            self.level = 1
+            self.hp = 100
+            self.max_hp = 100
+            self.fruit = None
+            self.current_sword = "Cutlass"
+            self.aura = "None"
+            self.race = "Human"
+            self.beli = 5000
+            self.frags = 0
+            self.position = "First Sea"
+            self.current_island = "Starter Island"
+            self.owned_fruits = []
+            self.owned_swords = ["Cutlass"]
+            self.owned_auras = ["None"]
+            self.owned_races = ["Human"]
+            self.perm_fruits = []
+            self.title = "Sailor"
+            self.bounty = 0
+    
+    def load_from_save(self):
+        accounts = load_accounts()
+        if self.username in accounts:
+            data = accounts[self.username]
+            self.is_admin = data.get("is_admin", self.is_admin)
+            self.level = data.get("level", 1)
+            self.hp = data.get("hp", 100)
+            self.max_hp = data.get("max_hp", 100)
+            self.current_sword = data.get("current_sword", "Cutlass")
+            self.aura = data.get("aura", "None")
+            self.race = data.get("race", "Human")
+            self.beli = data.get("beli", 5000)
+            self.frags = data.get("frags", 0)
+            self.position = data.get("position", "First Sea")
+            self.current_island = data.get("current_island", "Starter Island")
+            self.owned_fruits = data.get("owned_fruits", [])
+            self.owned_swords = data.get("owned_swords", ["Cutlass"])
+            self.owned_auras = data.get("owned_auras", ["None"])
+            self.owned_races = data.get("owned_races", ["Human"])
+            self.perm_fruits = data.get("perm_fruits", [])
+            self.title = data.get("title", "Sailor")
+            self.bounty = data.get("bounty", 0)
+            
+            fruit_name = data.get("fruit")
+            if fruit_name == "Galaxy Fruit":
+                self.fruit = GALAXY_FRUIT.copy()
+            elif fruit_name in FRUITS:
+                self.fruit = FRUITS[fruit_name].copy()
+                self.fruit["name"] = fruit_name
+            else:
+                self.fruit = None
+        else:
+            self.init_new_player()
+            self.save()
+    
+    def save(self):
+        accounts = load_accounts()
+        accounts[self.username] = {
+            "is_admin": self.is_admin,
+            "level": self.level,
+            "hp": self.hp,
+            "max_hp": self.max_hp,
+            "current_sword": self.current_sword,
+            "aura": self.aura,
+            "race": self.race,
+            "beli": self.beli,
+            "frags": self.frags,
+            "position": self.position,
+            "current_island": self.current_island,
+            "owned_fruits": self.owned_fruits,
+            "owned_swords": self.owned_swords,
+            "owned_auras": self.owned_auras,
+            "owned_races": self.owned_races,
+            "perm_fruits": self.perm_fruits,
+            "title": self.title,
+            "bounty": self.bounty,
+            "fruit": self.fruit["name"] if self.fruit else None
+        }
+        save_accounts(accounts)
+    
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "is_admin": self.is_admin,
+            "level": self.level,
+            "hp": self.hp,
+            "max_hp": self.max_hp,
+            "fruit_name": self.fruit["name"] if self.fruit else None,
+            "current_sword": self.current_sword,
+            "aura": self.aura,
+            "race": self.race,
+            "beli": self.beli,
+            "frags": self.frags,
+            "position": self.position,
+            "current_island": self.current_island,
+            "title": self.title,
+            "bounty": self.bounty
+        }
+    
+    def get_total_damage(self):
+        fruit_damage = self.fruit.get("damage", 0) if self.fruit else 0
+        sword_damage = SWORDS.get(self.current_sword, {}).get("damage", 15)
+        return (self.level * 10) + fruit_damage + sword_damage
 
-        <div class="stat-row" style="margin-top:10px;"><span>الطاقة (Stamina):</span> <span>500/500</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="background: #38a169; width: 100%;"></div></div>
+# ====================== واجهة تسجيل الدخول النصية ======================
+def login_screen():
+    while True:
+        clear_screen()
+        print("=" * 60)
+        print("         🌌 BLOX FRUITS - ONLINE 🌌")
+        print("=" * 60)
+        print("\n1. تسجيل دخول")
+        print("2. حساب جديد")
+        print("3. خروج")
         
-        <div style="margin-top:15px; border-top: 1px solid #333; padding-top:10px; color: gold;">
-            الذهب: <span id="ui-gold">0</span> $
-        </div>
-    </div>
-</div>
-
-<div id="viewport">
-    <div id="ocean-world">
-        <div class="island" style="left: 4700px; top: 4700px; width: 600px; height: 600px;">
-            <b style="color: white; font-size: 20px;">جزيرة المبتدئين (Spawn)</b>
-        </div>
-        <div class="island" style="left: 7000px; top: 3000px; width: 800px; height: 800px; background: #4a4a4a;">
-            <b style="color: white; font-size: 20px;">جزيرة السجن (Impel Down)</b>
-        </div>
-    </div>
-</div>
-
-<script>
-    let player = {
-        name: "", skin: "Pirate", level: 1, gold: 0, hp: 100,
-        pos: { x: 5000, y: 5000, r: 0 },
-        isAdmin: false, speed: 7
-    };
-
-    function selectSkin(type, el) {
-        player.skin = type;
-        document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
-    }
-
-    function startGame() {
-        player.name = document.getElementById('player-name').value || "بحار";
-        const code = document.getElementById('admin-pass').value;
-
-        if(code === "ADMIN777") {
-            player.isAdmin = true;
-            player.level = "MAX (1000)";
-            player.gold = "∞";
-            player.speed = 15;
-            document.getElementById('admin-menu').style.display = 'block';
-        }
-
-        document.getElementById('selection-screen').style.display = 'none';
-        document.getElementById('game-ui').style.display = 'block';
-
-        initPlayer();
-        gameLoop();
-    }
-
-    function initPlayer() {
-        const ship = document.createElement('div');
-        ship.id = 'player-ship';
-        ship.className = 'player-entity';
-        ship.innerHTML = `
-            <div style="position:absolute; top:-40px; width:150px; left:-45px; text-align:center; font-weight:bold;">
-                ${player.name} <br> <span style="color:cyan; font-size:10px;">Lv. ${player.level}</span>
-            </div>
-            <div class="ship-body ${player.isAdmin ? 'admin-glow' : ''}"></div>
-        `;
-        document.getElementById('ocean-world').appendChild(ship);
-        updateUI();
-    }
-
-    let keys = {};
-    window.onkeydown = (e) => keys[e.key] = true;
-    window.onkeyup = (e) => keys[e.key] = false;
-
-    function gameLoop() {
-        if(keys['w'] || keys['ArrowUp']) {
-            player.pos.x += Math.sin(player.pos.r * Math.PI / 180) * player.speed;
-            player.pos.y -= Math.cos(player.pos.r * Math.PI / 180) * player.speed;
-        }
-        if(keys['a'] || keys['ArrowLeft']) player.pos.r -= 4;
-        if(keys['d'] || keys['ArrowRight']) player.pos.r += 4;
-
-        // تحديث السفينة والكاميرا
-        const ship = document.getElementById('player-ship');
-        ship.style.left = player.pos.x + 'px';
-        ship.style.top = player.pos.y + 'px';
-        ship.querySelector('.ship-body').style.transform = `rotate(${player.pos.r}deg)`;
-
-        const world = document.getElementById('ocean-world');
-        world.style.left = (-player.pos.x + window.innerWidth/2) + 'px';
-        world.style.top = (-player.pos.y + window.innerHeight/2) + 'px';
-
-        requestAnimationFrame(gameLoop);
-    }
-
-    function updateUI() {
-        document.getElementById('ui-level').innerText = player.level;
-        document.getElementById('ui-gold').innerText = player.gold;
-    }
-
-    // أوامر الأدمن
-    function setStat(stat, val) { player[stat] = val; updateUI(); }
-    function giveFruit(name) { alert("تم تفعيل قوة: " + name); }
-</script>
-
-</body>
-</html>
+        choice = input("\nاختر: ").strip()
+        
+        if choice == "1":
+            username = input("اسم المستخدم: ").strip()
+            password = input("كلمة المرور: ").strip()
+            accounts = load_accounts()
+            if username in accounts and accounts[username]["password"] == hash_password(password):
+                print(f"\n✅ مرحباً {username}!")
+                time.sleep(1)
+                return username
+            else:
+                print("\n⚠️ اسم المستخدم أو كلمة المرور خطأ!")
+                time.sleep(1.5)
